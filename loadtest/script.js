@@ -7,7 +7,7 @@ export let options = {
 };
 
 export default function () {
-  const res = http.get("http://host.docker.internal:8080/"); 
+  const res = http.get("http://127.0.0.1:55155/"); 
   check(res, { "status 200": (r) => r.status === 200 });
   sleep(1);
 }
