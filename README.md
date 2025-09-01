@@ -1,97 +1,123 @@
-# Atividade Ponderada: Cluster Kubernetes
+# Cluster Kubernetes com HPA
 
-## Objetivo
-
-O objetivo deste projeto é desenvolver um **cluster Kubernetes** com escalabilidade, utilizando o **Horizontal Pod Autoscaler (HPA)** para ajustar automaticamente o número de réplicas de uma aplicação baseada em **PHP e Apache**.  
-
-O projeto demonstra a aplicação de conceitos de **orquestração, escalabilidade e monitoramento de métricas de pods** em Kubernetes.
+## Introdução
+Nesta atividade, o objetivo foi desenvolver um **cluster Kubernetes** com escalabilidade, utilizando o **Horizontal Pod Autoscaler (HPA)** para ajustar automaticamente o número de réplicas de uma aplicação PHP com Apache. 
+O projeto foi implementado utilizando o **k3d**, mas poderia ser feito com outras ferramentas como **minikube** ou **k3s**. Além da construção do cluster, foram realizados testes de carga para analisar o comportamento do HPA.
 
 ---
 
-## Estrutura do Repositório
+## Estrutura do Cluster
 
-```powershell
-├── k8s/
-│ ├── 01-deployment.yaml # Deployment da aplicação PHP-Apache
-│ ├── 02-service.yaml # Serviço LoadBalancer para expor a aplicação
-│ └── 03-hpa.yaml # Configuração do Horizontal Pod Autoscaler
-├── README.md # Documentação do projeto
-└── scripts/
-└── load-test.js # Script de teste de carga (k6)
+### Deployments
+```bash
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/php-apache   1/1     1            1           16m
 ```
 
-## Pré-requisitos
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) ativo
-- [k3d](https://k3d.io/) para criar o cluster Kubernetes
-- [kubectl](https://kubernetes.io/docs/tasks/tools/) configurado
-- [k6](https://k6.io/) para testes de carga (opcional, para validação do HPA)
-
-## Passo a passo: Configuração do Cluster
-
-### 1. Criar o cluster Kubernetes com k3d
-
-```powershell
-k3d cluster create ponderada --agents 2
+### ReplicaSets
+```bash
+NAME                                    DESIRED   CURRENT   READY   AGE
+replicaset.apps/php-apache-54b7ff8977   1         1         1       16m
 ```
 
-Verifique se o cluster está ativo:
-
-```powershell
-k3d cluster list
+### Pods
+```bash
+NAME                              READY   STATUS    RESTARTS   AGE
+pod/php-apache-54b7ff8977-l2xwj   1/1     Running   0          16m
 ```
-
-### 2. Configurar o contexto do kubectl
-
-```powershell
-$env:KUBECONFIG="C:\Users\Inteli\cluster\kubeconfig.yaml"
-kubectl config current-context
-```
-
-### 3. Aplicar Deployment e Service
-
-```powershell
-kubectl apply -f k8s/01-deployment.yaml
-kubectl apply -f k8s/02-service.yaml
-```
-
-Verifique se os pods estão sendo criados:
-
-```powershell
-kubectl get pods -o wide
-kubectl get svc -o wide
-```
-
-## Resultados do Cluster Kubernetes
-
-### Status dos Nodes
-
-| Node                    | CPU (cores) | CPU % | Memory (bytes) | Memory % |
-|-------------------------|-------------|-------|----------------|----------|
-| k3d-ponderada-agent-0   | 168m        | 2%    | 181Mi          | 2%       |
-| k3d-ponderada-agent-1   | 100m        | 1%    | 157Mi          | 2%       |
-| k3d-ponderada-server-0  | 140m        | 1%    | 549Mi          | 7%       |
-
----
-
-### Status dos Pods (Default Namespace)
-
-| Pod Name                  | Ready | Status              | Restarts | Node                     | Age |
-|----------------------------|-------|-------------------|----------|-------------------------|-----|
-| php-apache-667467f4d-27tz9| 0/1   | ContainerCreating  | 0        | k3d-ponderada-agent-0   | 15s |
-
----
 
 ### Services
+```bash
+NAME                     TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+service/php-apache-svc   LoadBalancer   10.43.105.231   <pending>     80:31633/TCP   16m
+```
 
-| Service Name        | Type         | Cluster-IP    | External-IP | Ports        | Selector       |
-|--------------------|--------------|--------------|------------|-------------|----------------|
-| php-apache-svc      | LoadBalancer | 10.43.66.166 | <pending>  | 80:30582/TCP| app=php-apache |
+### HPA
+```bash
+NAME                                                 REFERENCE               TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/php-apache-hpa   Deployment/php-apache   cpu: 0%/50%   1         10        1          15m
+```
+- Mínimo de réplicas: 1
+- Máximo de réplicas: 10
+- Métrica monitorada: CPU
+- Status: AbleToScale, ScalingActive, ScalingLImited
+- Obs: Houve warnings sobre métricas de CPU não retornadas, o que é comum em clusters locais sem métricas externas configuradas.
+
+## Métricas de Recurso do Cluster
+
+### Nodes
+```bash
+NAME                       CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
+k3d-hpa-cluster-agent-0    118m         1%     210Mi           2%
+k3d-hpa-cluster-agent-1    124m         1%     319Mi           4%
+k3d-hpa-cluster-server-0   131m         1%     523Mi           6%
+```
+
+### Pods
+```bash
+NAME                              CPU(cores)   MEMORY(bytes)
+php-apache-54b7ff8977-l2xwj      1m           9Mi
+```
+
+## Teste de carga
+
+Para avaliar a escalabilidade, foi utilizado o container [williamyeh/hey](https://hub.docker.com/r/williamyeh/hey?utm_source=chatgpt.com) para simular 50 requisições concorrentes por 2 minutos.
+
+O teste de carga mostrou que o cluster é capaz de lidar com um grande número de requisições simultâneas, demonstrando desempenho consistente.
+
+```bash
+docker run --rm -it williamyeh/hey -z 2m -c 50 http://host.docker.internal:8080/
+```
+
+### Resultados
+
+- Total de requisições: 616.057
+- Requests/sec: 5.133
+- Latência média: 0.0097s
+- Latência 50%: 0.0088s
+- Latência 90%: 0.0152s
+
+### Distribuição de latência
+
+```bash
+10% em 0.0054s
+25% em 0.0068s
+50% em 0.0088s
+75% em 0.0115s
+90% em 0.0152s
+95% em 0.0181s
+99% em 0.0255s
+```
 
 ---
 
-### Teste de Carga (k6)
+## Como executar
 
-Durante o teste de carga com 50 VUs por 1 minuto, o HPA deve escalar automaticamente o deployment `php-apache` até o máximo de 10 pods, dependendo da CPU utilizada.
+1) Clone o repositório:
+```bash
+git clone https://github.com/rafaelarojas/cluster
+cd https://github.com/rafaelarojas/cluster
+```
 
----
+2) Suba o cluster:
+```bash
+k3d cluster create hpa-cluster -f k3d-config.yaml
+```
+
+3) Aplique os manifests do Kubernetes:
+```bash
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+kubectl apply -f hpa.yaml
+```
+
+4) Verifique o status:
+```bash
+kubectl get all
+kubectl get hpa
+```
+
+5) Execute testes de carga:
+```bash
+docker run --rm -it williamyeh/hey -z 2m -c 50 http://host.docker.internal:8080/
+```
