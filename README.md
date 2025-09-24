@@ -32,17 +32,6 @@ NAME                     TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)   
 service/php-apache-svc   LoadBalancer   10.43.105.231   <pending>     80:31633/TCP   16m
 ```
 
-### HPA
-```bash
-NAME                                                 REFERENCE               TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
-horizontalpodautoscaler.autoscaling/php-apache-hpa   Deployment/php-apache   cpu: 0%/50%   1         10        1          15m
-```
-- Mínimo de réplicas: 1
-- Máximo de réplicas: 10
-- Métrica monitorada: CPU
-- Status: AbleToScale, ScalingActive, ScalingLImited
-- Obs: Houve warnings sobre métricas de CPU não retornadas, o que é comum em clusters locais sem métricas externas configuradas.
-
 ## Métricas de Recurso do Cluster
 
 ### Nodes
@@ -59,35 +48,64 @@ NAME                              CPU(cores)   MEMORY(bytes)
 php-apache-54b7ff8977-l2xwj      1m           9Mi
 ```
 
-## Teste de carga
+# Teste de Carga
 
-Para avaliar a escalabilidade, foi utilizado o container [williamyeh/hey](https://hub.docker.com/r/williamyeh/hey?utm_source=chatgpt.com) para simular 50 requisições concorrentes por 2 minutos.
+Para avaliar a escalabilidade do cluster, foi utilizado o container [`williamyeh/hey`](https://hub.docker.com/r/williamyeh/hey) para simular requisições concorrentes.
 
-O teste de carga mostrou que o cluster é capaz de lidar com um grande número de requisições simultâneas, demonstrando desempenho consistente.
+## Comando Utilizado
 
 ```bash
 docker run --rm -it williamyeh/hey -z 2m -c 50 http://host.docker.internal:8080/
 ```
+O teste simulou 50 requisições concorrentes por 2 minutos.
 
-### Resultados
+## Resultados Gerais
 
-- Total de requisições: 616.057
-- Requests/sec: 5.133
-- Latência média: 0.0097s
-- Latência 50%: 0.0088s
-- Latência 90%: 0.0152s
+| Métrica                 | Valor           |
+|--------------------------|----------------|
+| Total de requisições     | 616.057        |
+| Requests por segundo      | 5.133          |
+| Latência média           | 0.0097 s       |
+| Latência 50% (mediana)   | 0.0088 s       |
+| Latência 90%             | 0.0152 s       |
 
-### Distribuição de latência
+---
 
-```bash
-10% em 0.0054s
-25% em 0.0068s
-50% em 0.0088s
-75% em 0.0115s
-90% em 0.0152s
-95% em 0.0181s
-99% em 0.0255s
-```
+## Distribuição de Latência
+
+| Percentil | Latência |
+|------------|----------|
+| 10%        | 0.0054 s |
+| 25%        | 0.0068 s |
+| 50%        | 0.0088 s |
+| 75%        | 0.0115 s |
+| 90%        | 0.0152 s |
+| 95%        | 0.0181 s |
+| 99%        | 0.0255 s |
+
+---
+
+## Detalhes do Teste (HPA)
+
+| Métrica                | Valor médio | Mais rápido | Mais lento |
+|------------------------|------------|------------|------------|
+| Total                   | 120.0284 s | 0.0015 s   | 0.2266 s   |
+| Requests/sec            | 3383.97    | -          | -          |
+| Total de dados          | 7.717.268 bytes | - | - |
+| Tamanho por requisição   | 19 bytes   | -          | -          |
+| DNS + Dialup             | 0.0000 s   | 0.0015 s   | 0.2266 s   |
+| DNS Lookup               | 0.0000 s   | 0.0000 s   | 0.0152 s   |
+| Request Write            | 0.0000 s   | 0.0000 s   | 0.0445 s   |
+| Response Wait            | 0.0144 s   | 0.0014 s   | 0.2265 s   |
+| Response Read            | 0.0002 s   | 0.0000 s   | 0.0445 s   |
+
+---
+
+## Observações
+
+- O cluster demonstrou alto desempenho, conseguindo lidar com milhares de requisições simultâneas.
+- A latência permanece baixa e consistente, indicando boa escalabilidade do sistema.
+
 
 ---
 

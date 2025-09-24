@@ -17,7 +17,6 @@ spec:
     spec:
       containers:
         - name: php-apache
-          # Imagem de exemplo usada na documentação do HPA
           image: registry.k8s.io/hpa-example
           ports:
             - containerPort: 80
