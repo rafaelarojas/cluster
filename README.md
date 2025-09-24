@@ -1,5 +1,7 @@
 # Cluster Kubernetes com HPA
 
+[Link para o vídeo](https://drive.google.com/file/d/1Z-e5IQqPC3hCNnwuiJiqiM6U8CcHNoRq/view?usp=sharing)
+
 ## Introdução
 Nesta atividade, o objetivo foi desenvolver um **cluster Kubernetes** com escalabilidade, utilizando o **Horizontal Pod Autoscaler (HPA)** para ajustar automaticamente o número de réplicas de uma aplicação PHP com Apache. 
 O projeto foi implementado utilizando o **k3d**, mas poderia ser feito com outras ferramentas como **minikube** ou **k3s**. Além da construção do cluster, foram realizados testes de carga para analisar o comportamento do HPA.
